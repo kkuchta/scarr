@@ -8,7 +8,7 @@
 
 This is completely in development right now, so the README will be more notes to myself than anything else for the immediate future.
 
-    go run scarr.go
+    rm -rf foobar; AWS_PROFILE=all_s3 go run src/* init -name foobar -domain bizbaz
 
 #  Ideal workflow:
 

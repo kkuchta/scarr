@@ -10,6 +10,12 @@ import (
   "github.com/aws/aws-sdk-go/service/s3"
 )
 
+func check(e error) {
+  if e != nil {
+    panic(e)
+  }
+}
+
 func exitErrorf(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg+"\n", args...)
 	os.Exit(1)
