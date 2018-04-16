@@ -53,6 +53,7 @@ func main(){
     fmt.Println("init parsed", *domainPtr, *namePtr)
   } else if deployCommand.Parsed() {
     fmt.Println("deploying")
+    runDeploy()
   }
 
   os.Exit(0)

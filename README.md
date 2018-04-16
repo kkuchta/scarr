@@ -10,6 +10,7 @@ This is completely in development right now, so the README will be more notes to
 
     rm -rf foobar; AWS_PROFILE=all_s3 go run src/* init -name foobar -domain bizbaz
 
+
 #  Ideal workflow:
 
     $ tool init kevin_blog --domain=kevinkuchta.com
