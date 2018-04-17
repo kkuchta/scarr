@@ -9,6 +9,7 @@
 This is completely in development right now, so the README will be more notes to myself than anything else for the immediate future.
 
     rm -rf foobar; AWS_PROFILE=all_s3 go run src/* init -name foobar -domain bizbaz
+    AWS_PROFILE=all_s3 go run src/* deploy
 
 
 #  Ideal workflow:
@@ -32,3 +33,7 @@ This is completely in development right now, so the README will be more notes to
       Syncing to S3...done
       1 file changed
       Creating cloudfront invalidation for 1 file...done
+
+# Permissions the deploy command needs:
+route53domains:GetDomainDetail
+route53domains:CheckDomainAvailability
