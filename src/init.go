@@ -10,6 +10,22 @@ import (
 
 const configTemplateString = `domain: "{{.domain}}"
 name: "{{.name}}"
+# This section's only used if you use scarr to register a domain.  Which fields
+# are required depends on what TLD you register.  See 
+# https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/domain-register-values-specify.html
+# for details.
+domainContact:
+  address_1: 'fillmein'
+  address_2: ''
+  city: 'fillmein'
+  contactType: 'PERSON'
+  countryCode: 'fillmein'
+  email: 'fillmein'
+  firstName: 'fillmein'
+  lastName: 'fillmein'
+  phoneNumber: 'fillmein'
+  state: 'fillmein'
+  zipCode: 'fillmein'
 `
 
 func generateConfig(domain string, name string) string {
