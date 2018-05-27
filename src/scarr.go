@@ -27,6 +27,7 @@ func main() {
 
 	domainPtr := initCommand.String("domain", "", "the domain this site will live at")
 	namePtr := initCommand.String("name", "", "the name of this project")
+	regionPtr := initCommand.String("region", "us-west-1", "the aws region this project's resources will live in (eg us-west-1)")
 
 	if len(os.Args) < 2 {
 		fmt.Println("Missing command")
@@ -49,8 +50,8 @@ func main() {
 	}
 
 	if initCommand.Parsed() {
-		runInit(*domainPtr, *namePtr)
-		fmt.Println("init parsed", *domainPtr, *namePtr)
+		runInit(*domainPtr, *namePtr, *regionPtr)
+		fmt.Println("init parsed", *domainPtr, *namePtr, *regionPtr)
 	} else if deployCommand.Parsed() {
 		fmt.Println("deploying")
 		runDeploy()
