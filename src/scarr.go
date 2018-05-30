@@ -38,7 +38,7 @@ func main() {
 
 	switch command {
 	case "-h":
-		fmt.Println("Available commands:\n  init\n  deploy")
+		fmt.Println("Available commands:\n  init\n  deploy\nUse `scarr <command> -h` for more information.")
 	case "init":
 		initCommand.Parse(os.Args[2:])
 	case "deploy":
