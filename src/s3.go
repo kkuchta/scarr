@@ -6,6 +6,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
 )
 
 func s3Service(region string) *s3.S3 {
@@ -13,20 +18,24 @@ func s3Service(region string) *s3.S3 {
 		Region: aws.String(region)}))
 	return s3.New(sess)
 }
+func s3ManagerService(region string) *s3manager.Uploader {
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(region)}))
+	return s3manager.NewUploader(sess)
+}
 
 func bucketExists(bucketName string, region string) bool {
 	fmt.Println("checking bucket", bucketName)
 	service := s3Service(region)
-	result, err := service.HeadBucket(&s3.HeadBucketInput{Bucket: &bucketName})
+	_, err := service.HeadBucket(&s3.HeadBucketInput{Bucket: &bucketName})
 
 	if err != nil {
-		// If we got an error, it's *probably* just because this bucket needs to be
-		// created.  Hopefully.  We might also not have permissions to list buckets!
-		fmt.Println("Error heading bucket (probably just need to create it):", err)
-		fmt.Println(" head result =", result)
-		return false
+		awsError := err.(awserr.Error)
+		if awsError.Code() == "NotFound" {
+			return false
+		}
+		dieOnError(err, "Error HEADing bucket")
 	}
-	fmt.Println("bucket head ersult =", result)
 	return true
 }
 
@@ -76,7 +85,6 @@ func ensureBucketIsWebsite(bucketName string, region string) {
 
 func createBucket(bucketName string, region string) {
 	service := s3Service(region)
-	fmt.Println("region=", region)
 
 	acl := "public-read"
 	input := s3.CreateBucketInput{
@@ -86,7 +94,60 @@ func createBucket(bucketName string, region string) {
 			LocationConstraint: &region,
 		},
 	}
-	result, err := service.CreateBucket(&input)
+	_, err := service.CreateBucket(&input)
 	dieOnError(err, "Failed to create bucket")
-	fmt.Println("Create bucket result = ", result)
+}
+
+func s3Sync(region string, bucket string, configuredExclude *[]string) []string {
+	service := s3ManagerService(region)
+	defaultExclude := []string{
+		".git",
+		".DS_Store",
+	}
+	allExclude := append(defaultExclude, *configuredExclude...)
+
+	fileList := []string{}
+	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+
+		for _, exclude := range allExclude {
+			matched, err := regexp.MatchString(exclude, path)
+			dieOnError(err, "Invalid exclude regex")
+			if matched {
+				return nil
+			}
+		}
+
+		fileList = append(fileList, path)
+		return nil
+	})
+	if err != nil {
+		fmt.Printf("walk error [%v]\n", err)
+	}
+
+	// TODO: detect differences and actually sync, rather than just overwriting everything
+	for _, filename := range fileList {
+		file, fileErr := os.Open(filename)
+		dieOnError(fileErr, "Failed to open file")
+
+		// Grab the first 512 bytes to detect the content type
+		buffer := make([]byte, 512)
+		_, err = file.Read(buffer)
+		dieOnError(err, "Failed reading start of file to detect content type")
+		// Reset the read pointer if necessary.
+		file.Seek(0, 0)
+		contentType := http.DetectContentType(buffer)
+		fmt.Println("Uploading ", filename, " to ", bucket)
+		_, uploadErr := service.Upload(&s3manager.UploadInput{
+			Bucket:      aws.String(bucket),
+			Key:         aws.String(filename),
+			Body:        file,
+			GrantRead:   aws.String("uri=http://acs.amazonaws.com/groups/global/AllUsers"),
+			ContentType: &contentType,
+		})
+		dieOnError(uploadErr, "Failed to upload file")
+	}
+	return fileList
 }

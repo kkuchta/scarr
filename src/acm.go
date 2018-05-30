@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/acm"
 	"os"
+	"time"
 )
 
 func amcService() *acm.ACM {
@@ -22,7 +23,6 @@ func getAcmCertificateARN(domain string) *string {
 
 	for _, certSummary := range listResult.CertificateSummaryList {
 		if *certSummary.DomainName == domain {
-			fmt.Println("Found cert:", certSummary)
 			return certSummary.CertificateArn
 		}
 	}
@@ -38,32 +38,64 @@ func createACMCertificate(domain string) *string {
 		ValidationMethod:        aws.String("DNS"),
 	})
 	dieOnError(err, "Failed to request ACM certificate")
-	fmt.Println("requestResult=", requestResult)
 	setACMDNS(*requestResult.CertificateArn, domain)
 
 	// TODO: wait until the acm cert lists as validated (might need to re-trigger something?)
 	return requestResult.CertificateArn
 }
 
-func setACMDNS(certificateARN string, domain string) {
+func getCertificateValidation(certificateARN string) *acm.DomainValidation {
 	service := amcService()
 	describeResult, err := service.DescribeCertificate(&acm.DescribeCertificateInput{
 		CertificateArn: &certificateARN,
 	})
 	dieOnError(err, "Failed to describe ACM certificate")
-	fmt.Println("Got detailed cert info")
-	domainValidation := describeResult.Certificate.DomainValidationOptions[0]
-	// TODO: getting an error here on first run.  Apparently domainValidation.ValidationStatus is nil?
-	// Not sure what I should check at this point then.
-	if *domainValidation.ValidationStatus == "PENDING_VALIDATION" {
-		fmt.Println("One of the cert's validation thingys are still waiting on dns.  Creating...")
+	return describeResult.Certificate.DomainValidationOptions[0]
+}
+
+func setACMDNS(certificateARN string, domain string) {
+
+	var domainValidation *acm.DomainValidation
+	// Right after certificate creation, validation status seems to be nil.  Wait a bit.
+	for i := 0; i < 5; i++ {
+		domainValidation := getCertificateValidation(certificateARN)
+		if domainValidation.ValidationStatus != nil {
+			break
+		} else {
+			time.Sleep(5 * time.Second)
+		}
+	}
+	// TODO: read up on go memory management so I don't have to do this again here to avoid segfaults
+	domainValidation = getCertificateValidation(certificateARN)
+
+	if *(domainValidation.ValidationStatus) == "PENDING_VALIDATION" {
+		fmt.Print("not yet valid; creating validation dns records...")
 		dns := domainValidation.ResourceRecord
-		createDNSRecord(domain, *dns.Name, *dns.Type, *dns.Value)
+		// If the dns record already exists, we're just waiting for validation so don't try to recreate it.
+		if !dnsRecordExists(getHostedZone(domain), *dns.Name, *dns.Type) {
+			createDNSRecord(domain, *dns.Name, *dns.Type, dns.Value, nil)
+		}
+
+		fmt.Print("waiting for validation (takes up to a few hours - feel free to ctrl-c and restart scarr later)...")
+		time.Sleep(5 * time.Second)
+
+		maxTries := 60 * 3
+		for i := 0; i < maxTries; i++ {
+			if *getCertificateValidation(certificateARN).ValidationStatus != "PENDING_VALIDATION" {
+				setACMDNS(certificateARN, domain)
+				break
+			}
+			if i == (maxTries - 1) {
+				fmt.Println("\nTimed out waiting for ACM certificate to validate.")
+				os.Exit(1)
+			}
+			time.Sleep(60 * time.Second)
+		}
 	} else if *domainValidation.ValidationStatus == "FAILED" {
 		fmt.Println("Err!  Cert validation failed!")
 		os.Exit(1)
 	} else {
-		fmt.Println("Certificate already validated")
+		fmt.Print("Certificate already validated")
 	}
 
 }

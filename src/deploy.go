@@ -30,6 +30,7 @@ type configType struct {
 	Name          string             `yaml:"name"`
 	Region        string             `yaml:"region"`
 	DomainContact contactDetailsType `yaml:"domainContact"`
+	Exclude       []string           `yaml:"exclude"`
 }
 
 func dieOnError(err error, message string) {
@@ -64,10 +65,11 @@ func getConfig() configType {
 }
 
 func ensureDomainRegistered(config configType) {
+	fmt.Printf("Checking domain %v registration...", config.Domain)
 
 	domainDetail := getDomainDetails(config.Domain)
 	if domainDetail == nil {
-		fmt.Println("Couldn't find domain '" + config.Domain + "' in your route53 account.")
+		fmt.Println("\nNot registered in our Route53")
 
 		// Not clear if there's a good way to detect this
 		// if isRegistering(config.Domain) {
@@ -82,7 +84,7 @@ But it *is* available to register.  For current prices, see the document linked 
 https://aws.amazon.com/route53/pricing/
 				`)
 			if strings.HasSuffix(config.Domain, ".com") {
-				fmt.Println("But as of April 2018, .com TLDs were $12/yr")
+				fmt.Println("(As of April 2018, .com TLDs were $12/yr)")
 			}
 			if confirm("Register that domain?") {
 				registerDomain(config.Domain, config.DomainContact)
@@ -98,57 +100,77 @@ this (you'll have to manage your own domain + dns setup then)
 			os.Exit(1)
 		}
 	} else {
-		fmt.Println("Domain exists!")
-		//fmt.Println("domainDetail=", domainDetail)
+		fmt.Println("Looks good!")
 	}
 }
 func ensureS3BucketExists(s3BucketName string, region string) {
+	fmt.Printf("Checking bucket %v...", s3BucketName)
 	if !bucketExists(s3BucketName, region) {
-		fmt.Println("S3 Bucket doesn't exist - creating it.")
+		fmt.Print(" bucket doesn't exist; creating it now...")
 		createBucket(s3BucketName, region)
 	} else {
-		fmt.Println("Bucket exists")
+		fmt.Print(" bucket already exists.")
 	}
 
 	if !bucketIsWorldReadable(s3BucketName, region) {
 		// We could _make_ this bucket world-readable, but that'd be bad if it turns out to have sensitive info in it.
-		fmt.Println("Bucket is not world-readable.  You should fix this (or delete the bucket and let us re-create it).")
+		fmt.Println("\nBucket is not world-readable.  You should fix this (or delete the bucket and let us re-create it).")
 		os.Exit(1)
 	}
+	fmt.Println(" Done")
 	ensureBucketIsWebsite(s3BucketName, region)
 }
 
 func ensureACMCertificate(domain string) string {
+	fmt.Printf("Checking ACM cert for %v...", domain)
 	certificateArn := getAcmCertificateARN(domain)
 	if certificateArn == nil {
-		fmt.Println("ACM certificate for this domain doesn't exist - creating one.")
+		fmt.Print("doesn't exist; creating...")
 		certificateArn = createACMCertificate(domain)
 	} else {
 		// Ensure it's DNS is set up
-		fmt.Println("Certificate already exists - ensuring it's validated")
+		fmt.Print("already exists; ensuring it's validated...")
 		setACMDNS(*certificateArn, domain)
 	}
+	fmt.Println("done.")
 	return *certificateArn
 }
-func ensureCloudFrontExists(certificateArn string, s3Url string, s3Bucket string, domain string) {
-	if !cloudFrontExists(s3Url) {
+func ensureCloudFrontExists(certificateArn string, s3Url string, s3Bucket string, domain string) string {
+	cloudfrontDomain, _ := getCloudfront(s3Bucket)
+	if cloudfrontDomain == nil {
 		fmt.Println("CloudFront distribution does not exist; creating")
-		createCloudFront(s3Url, s3Bucket, certificateArn, domain)
+		cloudfrontDomain = createCloudFront(s3Url, s3Bucket, certificateArn, domain)
 	}
+	return *cloudfrontDomain
+}
+func ensureDomainPointingToCloudfront(cloudfrontDomain string, mainDomain string) {
+	hostedZoneID := getHostedZone(mainDomain)
+	if dnsRecordExists(hostedZoneID, mainDomain, "A") {
+		fmt.Println("Domain has a (hopefully-correct) alias already configured")
+	} else {
+		fmt.Println("Creating A-record alias to domain")
+		createAliasRecord(mainDomain, mainDomain, cloudfrontDomain)
+	}
+
+	// TODO: set up an alias or redirect from www to apex
+}
+
+func invalidateCloudfront(s3Bucket string, pathsToInvalidate []string) {
+	// TODO: actually invalidate what's passed in
+	createCloudfrontInvalidation(s3Bucket, []string{"/*"})
 }
 
 func runDeploy() {
 	config := getConfig()
 	s3Bucket := config.Name + "-bucket"
 	s3Url := s3Bucket + ".s3-website-" + config.Region + ".amazonaws.com"
-	fmt.Println("s3Url=", s3Url)
 
 	ensureDomainRegistered(config)
 	certArn := ensureACMCertificate(config.Domain)
 	ensureS3BucketExists(s3Bucket, config.Region)
-	ensureCloudFrontExists(certArn, s3Url, s3Bucket, config.Domain)
+	cloudfrontDomain := ensureCloudFrontExists(certArn, s3Url, s3Bucket, config.Domain)
+	ensureDomainPointingToCloudfront(cloudfrontDomain, config.Domain)
 
-	//changed_files = sync_to_s3(s3Bucket)
-	//invalidate(changed_files)
-
+	changedFiles := s3Sync(config.Region, s3Bucket, &config.Exclude)
+	invalidateCloudfront(s3Bucket, changedFiles)
 }

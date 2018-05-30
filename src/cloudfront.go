@@ -15,7 +15,9 @@ func cloudFrontService() *cloudfront.CloudFront {
 	return cloudfront.New(sess)
 }
 
-func cloudFrontExists(s3Url string) bool {
+// Returns cloudfrontDomain, distId
+func getCloudfront(s3Bucket string) (*string, *string) {
+	s3Domain := s3Bucket + ".s3.amazonaws.com"
 	service := cloudFrontService()
 	result, err := service.ListDistributions(&cloudfront.ListDistributionsInput{})
 	dieOnError(err, "Failed getting distribution list")
@@ -27,26 +29,24 @@ func cloudFrontExists(s3Url string) bool {
 
 	for _, dist := range result.DistributionList.Items {
 		for _, origin := range dist.Origins.Items {
-			if *origin.DomainName == s3Url {
+			if *origin.DomainName == s3Domain {
 				// s3Url looks like:
 				// voyage-found.s3-website-us-west-1.amazonaws.com
-				return true
+				return dist.DomainName, dist.Id
 			}
 		}
 	}
-	return false
+	return nil, nil
 }
 
-func createCloudFront(s3Url string, bucketName string, certificateArn string, domain string) {
+func createCloudFront(s3Url string, bucketName string, certificateArn string, domain string) *string {
 	fmt.Println("Creating cloudfront")
-	fmt.Println("s3Url=", s3Url)
-	fmt.Println("bucketName=", bucketName)
-	fmt.Println("certificateArn=", certificateArn)
-	fmt.Println("domain=", domain)
+
 	// Taking a break from this function to go set up ACM, since we'll need that ID
 	service := cloudFrontService()
 	originID := "S3-" + bucketName
 	// s3DomainName := bucketName + ".s3.amazonaws.com"
+	s3Domain := bucketName + ".s3.amazonaws.com"
 
 	aliases := cloudfront.Aliases{
 		Items:    aws.StringSlice([]string{domain}),
@@ -78,13 +78,7 @@ func createCloudFront(s3Url string, bucketName string, certificateArn string, do
 		ViewerProtocolPolicy: aws.String("redirect-to-https"),
 	}
 
-	s3Domain := bucketName + ".s3.amazonaws.com"
-
-	fmt.Println("s3Domain=", s3Domain)
 	origin := cloudfront.Origin{
-		// S3OriginConfig: &cloudfront.S3OriginConfig{
-		// 	OriginAccessIdentity: aws.String(""),
-		// },
 		CustomOriginConfig: &cloudfront.CustomOriginConfig{
 			HTTPPort:             aws.Int64(80),
 			HTTPSPort:            aws.Int64(443),
@@ -135,9 +129,35 @@ func createCloudFront(s3Url string, bucketName string, certificateArn string, do
 
 	dieOnError(err, "Failed to create cloudfront distribution")
 
-	fmt.Println("Waiting for distribution to finish...")
+	fmt.Print("Waiting for distribution to finish (20-40 minutes)...")
 	service.WaitUntilDistributionDeployed(&cloudfront.GetDistributionInput{
 		Id: createResult.Distribution.Id,
 	})
-	fmt.Println("Distribution finished!")
+	fmt.Println(" Done")
+	return createResult.Distribution.DomainName
+}
+
+func createCloudfrontInvalidation(s3Bucket string, paths []string) {
+	_, distributionID := getCloudfront(s3Bucket)
+	service := cloudFrontService()
+	callerReference := time.Now().Format(time.RFC850)
+	fmt.Print("Invalidating cache...")
+	invalidationResult, err := service.CreateInvalidation(&cloudfront.CreateInvalidationInput{
+		DistributionId: distributionID,
+		InvalidationBatch: &cloudfront.InvalidationBatch{
+			CallerReference: &callerReference,
+			Paths: &cloudfront.Paths{
+				Items:    aws.StringSlice(paths),
+				Quantity: aws.Int64(int64(len(paths))),
+			},
+		},
+	})
+	dieOnError(err, "Failed to create Invalidation")
+
+	fmt.Print("waiting (5-10 minutes)...")
+	service.WaitUntilInvalidationCompleted(&cloudfront.GetInvalidationInput{
+		DistributionId: distributionID,
+		Id:             invalidationResult.Invalidation.Id,
+	})
+	fmt.Println(" done")
 }

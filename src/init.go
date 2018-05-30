@@ -28,6 +28,10 @@ domainContact:
   phoneNumber: 'fillmein'
   state: 'fillmein'
   zipCode: 'fillmein'
+
+# A list of regexes to be run against paths in the current directory.  Any file path matching any of these regexes will not be synced to s3
+exclude:
+  - "scarr\\.yml"
 `
 
 func generateConfig(domain string, name string, region string) string {

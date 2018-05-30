@@ -107,13 +107,29 @@ func getDomainAvailabilityWithRetries(domain string, retries int) bool {
 	return false
 }
 
-func createDNSRecord(domain string, recordName string, recordType string, recordValue string) {
-	fmt.Println("Creating record of type", recordType, recordName, recordValue)
+func dnsRecordExists(hostedZoneID string, domain string, recordType string) bool {
 	service := route53Service()
-	hostedZonesList, err := service.ListHostedZones(&route53.ListHostedZonesInput{})
-	dieOnError(err, "Failed to list hosted zones")
+	result, err := service.ListResourceRecordSets(&route53.ListResourceRecordSetsInput{
+		HostedZoneId: &hostedZoneID,
+	})
+	dieOnError(err, "Failed listing resource record sets")
+
+	for _, recordSet := range result.ResourceRecordSets {
+		if *recordSet.Name == domain+"." && *recordSet.Type == recordType {
+			fmt.Println("Found alias!")
+			return true
+		}
+	}
+	return false
+}
+
+func getHostedZone(domain string) string {
+	service := route53Service()
 
 	hostedZoneID := ""
+
+	hostedZonesList, err := service.ListHostedZones(&route53.ListHostedZonesInput{})
+	dieOnError(err, "Failed to list hosted zones")
 
 	for _, hostedZone := range hostedZonesList.HostedZones {
 		if *hostedZone.Name == domain+"." {
@@ -126,35 +142,62 @@ func createDNSRecord(domain string, recordName string, recordType string, record
 		fmt.Println("Couldn't find hosted zone for domain")
 		os.Exit(1)
 	}
-	fmt.Println("hostedZoneId=", hostedZoneID)
+	return hostedZoneID
+}
 
-	// TODO: this might work, but needs to be tested
-	_, err = service.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
+func createAliasRecord(hostedZoneDomain string, recordName string, cloudfrontDomain string) {
+	createDNSRecord(hostedZoneDomain, recordName, "A", nil, &route53.AliasTarget{
+		DNSName:              &cloudfrontDomain,
+		EvaluateTargetHealth: aws.Bool(false),
+		HostedZoneId:         aws.String("Z2FDTNDATAQYW2"),
+	})
+	// ^ Hardcoded zone ID as specified in aws docs
+}
+
+func createDNSRecord(domain string, recordName string, recordType string, recordValue *string, aliasTarget *route53.AliasTarget) {
+	// fmt.Println("Creating record of type", recordType, recordName, recordValue)
+	service := route53Service()
+
+	hostedZoneID := getHostedZone(domain)
+
+	input := route53.ChangeResourceRecordSetsInput{
 		HostedZoneId: &hostedZoneID,
 		ChangeBatch: &route53.ChangeBatch{
-			Comment: aws.String("ACM Validation Records"),
+			Comment: aws.String("Created by scarr.io"),
 			Changes: []*route53.Change{
 				{
 					Action: aws.String("CREATE"),
 					ResourceRecordSet: &route53.ResourceRecordSet{
 						Name: &recordName,
 						Type: &recordType,
-						ResourceRecords: []*route53.ResourceRecord{
-							{
-								Value: &recordValue,
-							},
-						},
 					},
 				},
 			},
 		},
-	})
+	}
+
+	if recordValue != nil {
+		input.ChangeBatch.Changes[0].ResourceRecordSet.ResourceRecords = []*route53.ResourceRecord{
+			{
+				Value: recordValue,
+			},
+		}
+	}
+
+	// If we're setting an alias record, we need this extra input
+	if aliasTarget != nil {
+		input.ChangeBatch.Changes[0].ResourceRecordSet.AliasTarget = aliasTarget
+	} else {
+		// Maybe necessary for cert validation dns?
+		input.ChangeBatch.Changes[0].ResourceRecordSet.TTL = aws.Int64(300)
+	}
+
+	_, err := service.ChangeResourceRecordSets(&input)
 	if err != nil {
 		awserror := err.(awserr.Error)
 
 		fmt.Println("code=", awserror.Code())
 	}
-	// TODO: Ok, so sometimes we get "invalid reqest" but it's still created?
+
 	dieOnError(err, "Failed to create dns record")
-	fmt.Println("Created dns record")
 }
