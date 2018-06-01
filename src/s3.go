@@ -25,7 +25,6 @@ func s3ManagerService(region string) *s3manager.Uploader {
 }
 
 func bucketExists(bucketName string, region string) bool {
-	fmt.Println("checking bucket", bucketName)
 	service := s3Service(region)
 	_, err := service.HeadBucket(&s3.HeadBucketInput{Bucket: &bucketName})
 
@@ -63,7 +62,7 @@ func ensureBucketIsWebsite(bucketName string, region string) {
 	if err != nil {
 		awsError := err.(awserr.Error)
 		if awsError.Code() == "NoSuchWebsiteConfiguration" {
-			fmt.Println("S3 bucket not configured for website - fixing")
+			fmt.Print("Making S3 bucket website...")
 			indexFile := "index.html"
 			_, err = service.PutBucketWebsite(&s3.PutBucketWebsiteInput{
 				Bucket: &bucketName,
@@ -72,9 +71,7 @@ func ensureBucketIsWebsite(bucketName string, region string) {
 				},
 			})
 			dieOnError(err, "Failed to update s3 bucket website config")
-			fmt.Println("Updated s3 bucket to be a website")
-
-			// TODO create website configuration
+			fmt.Println(" done")
 		} else {
 			dieOnError(err, "Failed to get bucket website config")
 		}
@@ -86,10 +83,8 @@ func ensureBucketIsWebsite(bucketName string, region string) {
 func createBucket(bucketName string, region string) {
 	service := s3Service(region)
 
-	acl := "public-read"
 	input := s3.CreateBucketInput{
 		Bucket: &bucketName,
-		ACL:    &acl,
 		CreateBucketConfiguration: &s3.CreateBucketConfiguration{
 			LocationConstraint: &region,
 		},

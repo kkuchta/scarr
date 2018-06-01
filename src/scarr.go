@@ -51,7 +51,7 @@ func main() {
 
 	if initCommand.Parsed() {
 		runInit(*domainPtr, *namePtr, *regionPtr)
-		fmt.Println("init parsed", *domainPtr, *namePtr, *regionPtr)
+		// fmt.Println("init parsed", *domainPtr, *namePtr, *regionPtr)
 	} else if deployCommand.Parsed() {
 		fmt.Println("Deploying")
 		runDeploy()

@@ -95,7 +95,7 @@ func setACMDNS(certificateARN string, domain string) {
 		fmt.Println("Err!  Cert validation failed!")
 		os.Exit(1)
 	} else {
-		fmt.Print("Certificate already validated")
+		fmt.Print("Certificate validated")
 	}
 
 }

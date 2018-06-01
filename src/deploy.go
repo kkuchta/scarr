@@ -112,12 +112,12 @@ func ensureS3BucketExists(s3BucketName string, region string) {
 		fmt.Print(" bucket already exists.")
 	}
 
-	if !bucketIsWorldReadable(s3BucketName, region) {
-		// We could _make_ this bucket world-readable, but that'd be bad if it turns out to have sensitive info in it.
-		fmt.Println("\nBucket is not world-readable.  You should fix this (or delete the bucket and let us re-create it).")
-		os.Exit(1)
-	}
-	fmt.Println(" Done")
+	// if !bucketIsWorldReadable(s3BucketName, region) {
+	// 	// We could _make_ this bucket world-readable, but that'd be bad if it turns out to have sensitive info in it.
+	// 	fmt.Println("\nBucket is not world-readable.  You should fix this (or delete the bucket and let us re-create it).")
+	// 	os.Exit(1)
+	// }
+	fmt.Println(" done")
 	ensureBucketIsWebsite(s3BucketName, region)
 }
 
@@ -132,11 +132,11 @@ func ensureACMCertificate(domain string) string {
 		fmt.Print("already exists; ensuring it's validated...")
 		setACMDNS(*certificateArn, domain)
 	}
-	fmt.Println("done.")
+	fmt.Println(" done")
 	return *certificateArn
 }
 func ensureCloudFrontExists(certificateArn string, s3Url string, s3Bucket string, domain string) string {
-	cloudfrontDomain, _ := getCloudfront(s3Bucket)
+	cloudfrontDomain, _ := getCloudfront(s3Url)
 	if cloudfrontDomain == nil {
 		fmt.Println("CloudFront distribution does not exist; creating")
 		cloudfrontDomain = createCloudFront(s3Url, s3Bucket, certificateArn, domain)
@@ -155,9 +155,9 @@ func ensureDomainPointingToCloudfront(cloudfrontDomain string, mainDomain string
 	// TODO: set up an alias or redirect from www to apex
 }
 
-func invalidateCloudfront(s3Bucket string, pathsToInvalidate []string) {
+func invalidateCloudfront(s3Domain string, pathsToInvalidate []string) {
 	// TODO: actually invalidate what's passed in
-	createCloudfrontInvalidation(s3Bucket, []string{"/*"})
+	createCloudfrontInvalidation(s3Domain, []string{"/*"})
 }
 
 func runDeploy() {
@@ -172,5 +172,5 @@ func runDeploy() {
 	ensureDomainPointingToCloudfront(cloudfrontDomain, config.Domain)
 
 	changedFiles := s3Sync(config.Region, s3Bucket, &config.Exclude)
-	invalidateCloudfront(s3Bucket, changedFiles)
+	invalidateCloudfront(s3Url, changedFiles)
 }

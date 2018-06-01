@@ -16,8 +16,7 @@ func cloudFrontService() *cloudfront.CloudFront {
 }
 
 // Returns cloudfrontDomain, distId
-func getCloudfront(s3Bucket string) (*string, *string) {
-	s3Domain := s3Bucket + ".s3.amazonaws.com"
+func getCloudfront(s3Domain string) (*string, *string) {
 	service := cloudFrontService()
 	result, err := service.ListDistributions(&cloudfront.ListDistributionsInput{})
 	dieOnError(err, "Failed getting distribution list")
@@ -39,14 +38,12 @@ func getCloudfront(s3Bucket string) (*string, *string) {
 	return nil, nil
 }
 
-func createCloudFront(s3Url string, bucketName string, certificateArn string, domain string) *string {
-	fmt.Println("Creating cloudfront")
+func createCloudFront(s3Domain string, bucketName string, certificateArn string, domain string) *string {
 
 	// Taking a break from this function to go set up ACM, since we'll need that ID
 	service := cloudFrontService()
 	originID := "S3-" + bucketName
-	// s3DomainName := bucketName + ".s3.amazonaws.com"
-	s3Domain := bucketName + ".s3.amazonaws.com"
+	// s3Domain := bucketName + ".s3.amazonaws.com"
 
 	aliases := cloudfront.Aliases{
 		Items:    aws.StringSlice([]string{domain}),
@@ -78,15 +75,25 @@ func createCloudFront(s3Url string, bucketName string, certificateArn string, do
 		ViewerProtocolPolicy: aws.String("redirect-to-https"),
 	}
 
+	// Custom-style origin.
 	origin := cloudfront.Origin{
 		CustomOriginConfig: &cloudfront.CustomOriginConfig{
 			HTTPPort:             aws.Int64(80),
 			HTTPSPort:            aws.Int64(443),
-			OriginProtocolPolicy: aws.String("https-only"),
+			OriginProtocolPolicy: aws.String("http-only"),
 		},
 		DomainName: &s3Domain,
 		Id:         &originID,
 	}
+	// S3-style origin
+	// origin := cloudfront.Origin{
+	// 	S3OriginConfig: &cloudfront.S3OriginConfig{
+	// 		// Empty for now.  Allows people to access s3 resources directly (which we don't care about)
+	// 		OriginAccessIdentity: aws.String(""),
+	// 	},
+	// 	DomainName: &s3Domain,
+	// 	Id:         &originID,
+	// }
 
 	origins := cloudfront.Origins{
 		Items:    []*cloudfront.Origin{&origin},
@@ -133,12 +140,12 @@ func createCloudFront(s3Url string, bucketName string, certificateArn string, do
 	service.WaitUntilDistributionDeployed(&cloudfront.GetDistributionInput{
 		Id: createResult.Distribution.Id,
 	})
-	fmt.Println(" Done")
+	fmt.Println(" done")
 	return createResult.Distribution.DomainName
 }
 
-func createCloudfrontInvalidation(s3Bucket string, paths []string) {
-	_, distributionID := getCloudfront(s3Bucket)
+func createCloudfrontInvalidation(s3Url string, paths []string) {
+	_, distributionID := getCloudfront(s3Url)
 	service := cloudFrontService()
 	callerReference := time.Now().Format(time.RFC850)
 	fmt.Print("Invalidating cache...")

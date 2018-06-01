@@ -26,6 +26,7 @@ func route53Service() *route53.Route53 {
 }
 
 func registerDomain(domain string, contactDetails contactDetailsType) {
+	fmt.Printf("Registering %v...", domain)
 	contact := route53domains.ContactDetail{
 		AddressLine1: &contactDetails.Address1,
 		AddressLine2: &contactDetails.Address2,
@@ -52,15 +53,25 @@ func registerDomain(domain string, contactDetails contactDetailsType) {
 	route53DomainsService := route53DomainsService()
 	result, err := route53DomainsService.RegisterDomain(&input)
 	dieOnError(err, "Failed to register domain")
-	fmt.Println("Registration result = ", result)
 
 	operationInput := route53domains.GetOperationDetailInput{
 		OperationId: result.OperationId,
 	}
-	operationResult, err := route53DomainsService.GetOperationDetail(&operationInput)
-	dieOnError(err, "Failed to get registration operation (but probs still registered the domains")
-	fmt.Println("Registration Operation result = ", operationResult)
-	// TODO: loop around this.  Probably loop while operationResult.status != something
+
+	// Wait up to 60 minutes for registration
+	for i := 0; i < 60; i++ {
+		operationResult, err := route53DomainsService.GetOperationDetail(&operationInput)
+		dieOnError(err, "Failed to get registration operation (but probably still registered the domain)")
+		if *operationResult.Status == "SUCCESSFUL" {
+			fmt.Println(" done")
+			return
+		} else if *operationResult.Status == "FAILED" {
+			fmt.Println("Domain registration failed")
+			os.Exit(1)
+		}
+		time.Sleep(60 * time.Second)
+	}
+	fmt.Println("\nTimed out waiting for registration to finish.  It may yet succeed - check your aws console.")
 }
 
 func getDomainDetails(domain string) *route53domains.GetDomainDetailOutput {
@@ -93,7 +104,6 @@ func getDomainAvailabilityWithRetries(domain string, retries int) bool {
 	route53DomainsService := route53DomainsService()
 	input := route53domains.CheckDomainAvailabilityInput{DomainName: &domain}
 	availabilityResult, err := route53DomainsService.CheckDomainAvailability(&input)
-	fmt.Println("av result =", availabilityResult)
 	dieOnError(err, "error getting domain availability")
 	if *availabilityResult.Availability == "AVAILABLE" {
 		return true
