@@ -136,11 +136,11 @@ func createCloudFront(s3Domain string, bucketName string, certificateArn string,
 
 	dieOnError(err, "Failed to create cloudfront distribution")
 
-	fmt.Print("Waiting for distribution to finish (20-40 minutes)...")
+	log("Waiting for distribution to finish (20-40 minutes)...")
 	service.WaitUntilDistributionDeployed(&cloudfront.GetDistributionInput{
 		Id: createResult.Distribution.Id,
 	})
-	fmt.Println(" done")
+	logln(" done")
 	return createResult.Distribution.DomainName
 }
 
@@ -148,7 +148,7 @@ func createCloudfrontInvalidation(s3Url string, paths []string) {
 	_, distributionID := getCloudfront(s3Url)
 	service := cloudFrontService()
 	callerReference := time.Now().Format(time.RFC850)
-	fmt.Print("Invalidating cache...")
+	log("Invalidating cache...")
 	invalidationResult, err := service.CreateInvalidation(&cloudfront.CreateInvalidationInput{
 		DistributionId: distributionID,
 		InvalidationBatch: &cloudfront.InvalidationBatch{
@@ -161,10 +161,10 @@ func createCloudfrontInvalidation(s3Url string, paths []string) {
 	})
 	dieOnError(err, "Failed to create Invalidation")
 
-	fmt.Print("waiting (5-10 minutes)...")
+	log("waiting (5-10 minutes)...")
 	service.WaitUntilInvalidationCompleted(&cloudfront.GetInvalidationInput{
 		DistributionId: distributionID,
 		Id:             invalidationResult.Invalidation.Id,
 	})
-	fmt.Println(" done")
+	logln(" done")
 }

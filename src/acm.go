@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/acm"
@@ -69,14 +68,14 @@ func setACMDNS(certificateARN string, domain string) {
 	domainValidation = getCertificateValidation(certificateARN)
 
 	if *(domainValidation.ValidationStatus) == "PENDING_VALIDATION" {
-		fmt.Print("not yet valid; creating validation dns records...")
+		log("not yet valid; creating validation dns records...")
 		dns := domainValidation.ResourceRecord
 		// If the dns record already exists, we're just waiting for validation so don't try to recreate it.
 		if !dnsRecordExists(getHostedZone(domain), *dns.Name, *dns.Type) {
 			createDNSRecord(domain, *dns.Name, *dns.Type, dns.Value, nil)
 		}
 
-		fmt.Print("waiting for validation (takes up to a few hours - feel free to ctrl-c and restart scarr later)...")
+		log("waiting for validation (takes up to a few hours - feel free to ctrl-c and restart scarr later)...")
 		time.Sleep(5 * time.Second)
 
 		maxTries := 60 * 3
@@ -86,16 +85,16 @@ func setACMDNS(certificateARN string, domain string) {
 				break
 			}
 			if i == (maxTries - 1) {
-				fmt.Println("\nTimed out waiting for ACM certificate to validate.")
+				logln("\nTimed out waiting for ACM certificate to validate.")
 				os.Exit(1)
 			}
 			time.Sleep(60 * time.Second)
 		}
 	} else if *domainValidation.ValidationStatus == "FAILED" {
-		fmt.Println("Err!  Cert validation failed!")
+		logln("Err!  Cert validation failed!")
 		os.Exit(1)
 	} else {
-		fmt.Print("Certificate validated")
+		log("Certificate validated")
 	}
 
 }

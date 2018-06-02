@@ -26,7 +26,7 @@ func route53Service() *route53.Route53 {
 }
 
 func registerDomain(domain string, contactDetails contactDetailsType) {
-	fmt.Printf("Registering %v...", domain)
+	logf("Registering %v...", domain)
 	contact := route53domains.ContactDetail{
 		AddressLine1: &contactDetails.Address1,
 		AddressLine2: &contactDetails.Address2,
@@ -63,15 +63,15 @@ func registerDomain(domain string, contactDetails contactDetailsType) {
 		operationResult, err := route53DomainsService.GetOperationDetail(&operationInput)
 		dieOnError(err, "Failed to get registration operation (but probably still registered the domain)")
 		if *operationResult.Status == "SUCCESSFUL" {
-			fmt.Println(" done")
+			logln(" done")
 			return
 		} else if *operationResult.Status == "FAILED" {
-			fmt.Println("Domain registration failed")
+			logln("Domain registration failed")
 			os.Exit(1)
 		}
 		time.Sleep(60 * time.Second)
 	}
-	fmt.Println("\nTimed out waiting for registration to finish.  It may yet succeed - check your aws console.")
+	logln("\nTimed out waiting for registration to finish.  It may yet succeed - check your aws console.")
 }
 
 func getDomainDetails(domain string) *route53domains.GetDomainDetailOutput {
@@ -126,7 +126,7 @@ func dnsRecordExists(hostedZoneID string, domain string, recordType string) bool
 
 	for _, recordSet := range result.ResourceRecordSets {
 		if *recordSet.Name == domain+"." && *recordSet.Type == recordType {
-			fmt.Println("Found alias!")
+			logln("Found alias!")
 			return true
 		}
 	}
@@ -149,7 +149,7 @@ func getHostedZone(domain string) string {
 
 	if hostedZoneID == "" {
 		// TODO: we can probably just create the hosted zone in this case
-		fmt.Println("Couldn't find hosted zone for domain")
+		logln("Couldn't find hosted zone for domain")
 		os.Exit(1)
 	}
 	return hostedZoneID

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -62,7 +61,7 @@ func ensureBucketIsWebsite(bucketName string, region string) {
 	if err != nil {
 		awsError := err.(awserr.Error)
 		if awsError.Code() == "NoSuchWebsiteConfiguration" {
-			fmt.Print("Making S3 bucket website...")
+			log("Making S3 bucket website...")
 			indexFile := "index.html"
 			_, err = service.PutBucketWebsite(&s3.PutBucketWebsiteInput{
 				Bucket: &bucketName,
@@ -71,12 +70,12 @@ func ensureBucketIsWebsite(bucketName string, region string) {
 				},
 			})
 			dieOnError(err, "Failed to update s3 bucket website config")
-			fmt.Println(" done")
+			logln(" done")
 		} else {
 			dieOnError(err, "Failed to get bucket website config")
 		}
 	} else {
-		fmt.Println("Bucket correctly configured for website")
+		logln("Bucket correctly configured for website")
 	}
 }
 
@@ -119,7 +118,7 @@ func s3Sync(region string, bucket string, configuredExclude *[]string) []string 
 		return nil
 	})
 	if err != nil {
-		fmt.Printf("walk error [%v]\n", err)
+		logf("walk error [%v]\n", err)
 	}
 
 	// TODO: detect differences and actually sync, rather than just overwriting everything
@@ -130,11 +129,11 @@ func s3Sync(region string, bucket string, configuredExclude *[]string) []string 
 		// Grab the first 512 bytes to detect the content type
 		buffer := make([]byte, 512)
 		_, err = file.Read(buffer)
-		dieOnError(err, "Failed reading start of file to detect content type")
+		dieOnError(err, "Failed reading start of file to detect content type for "+filename)
 		// Reset the read pointer if necessary.
 		file.Seek(0, 0)
 		contentType := http.DetectContentType(buffer)
-		fmt.Println("Uploading ", filename, " to ", bucket)
+		logln("Uploading ", filename, " to ", bucket)
 		_, uploadErr := service.Upload(&s3manager.UploadInput{
 			Bucket:      aws.String(bucket),
 			Key:         aws.String(filename),

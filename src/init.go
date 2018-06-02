@@ -52,7 +52,7 @@ func writeFile(path string, content string) {
 }
 
 func runInit(domain string, name string, region string) {
-	fmt.Print("Initializing...")
+	log("Initializing...")
 	err := os.Mkdir(name, 0755)
 	if err != nil {
 		fmt.Println(err)
@@ -60,6 +60,6 @@ func runInit(domain string, name string, region string) {
 	}
 	config := generateConfig(domain, name, region)
 	writeFile(name+"/scarr.yml", config)
-	fmt.Println("done")
-	fmt.Println("You'll need to edit scarr.yml to fill in contact details if you want to use scarr register domain names.")
+	logln("done")
+	logln("You'll need to edit scarr.yml to fill in contact details if you want to use scarr register domain names.")
 }
