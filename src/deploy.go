@@ -61,7 +61,7 @@ func getConfig() configType {
 }
 
 func ensureDomainRegistered(config configType, autoRegister bool) {
-	logln("Checking domain %v registration...", config.Domain)
+	log("Checking domain " + config.Domain + "registration...")
 
 	domainDetail := getDomainDetails(config.Domain)
 	if domainDetail == nil {
@@ -174,5 +174,5 @@ func runDeploy(skipSetup bool, autoRegister bool) {
 	changedFiles := s3Sync(config.Region, s3Bucket, &config.Exclude)
 	invalidateCloudfront(s3Url, changedFiles)
 
-	logln("Deployed to https://%v", config.domain)
+	logf("Deployed to https://%v", config.Domain)
 }

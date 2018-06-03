@@ -126,7 +126,6 @@ func dnsRecordExists(hostedZoneID string, domain string, recordType string) bool
 
 	for _, recordSet := range result.ResourceRecordSets {
 		if *recordSet.Name == domain+"." && *recordSet.Type == recordType {
-			logln("Found alias!")
 			return true
 		}
 	}
