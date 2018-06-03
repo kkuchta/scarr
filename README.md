@@ -34,7 +34,7 @@ The `deploy` command does the following:
 TLDR: Cheap, painless, fast, bulletproof flatfile sites with https and an apex domain.
 
 # Quickstart
-1. Download the binary from <here>
+1. Download the binary from https://scarr.io/dist/scarr
 2. Set up an aws user with the permissions listed under "Configure" below
 3. Run `scarr init -domain domainyouwant.com -name mycoolproject` and cd into the generated directory
 4. Create an index.html page in that directory
@@ -44,10 +44,10 @@ And once scarr finishes deploying, your site should be live at https://domainyou
 
 # Installation
 
-Scarr is distributed as a simple binary that you can download [here(todo)].  Right now it's only been tested on Mac OS.
+Scarr is distributed as a simple binary that you can download [here](https://scarr.io/dist/scarr).  Right now it's only been tested on Mac OS.
 
 ```
-curl <above_url> > scarr
+curl https://scarr.io/dist/scarr > scarr
 chmod +x scarr
 ./scarr init ...
 ```
