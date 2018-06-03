@@ -145,6 +145,9 @@ The scarr init command will generate a scarr.yml file with pretty much everythin
 - `-auto-register` causes scarr to automatically register the domain (rather than prompting for confirmation from the user) if it's not already in our route53 account and is available to register.
 - `-silent` runs scarr without any output except errors and the registration prompt (if -auto-register is off).
 
+# On the code
 
-# TODO:
+Let's face it: this codebase is pretty ugly.  The organization is a procedural mess, everything's in the same package, global functions and variables everywhere.  Part of that is because this is literally the first golang code I've ever written, and part of it's because I thought this was going to be a 50-line shell script - I just got carried away and now here we are!  I'll reorganize and clean everything up at some point.
+
+### TODO:
 Handle bad input better (eg init with no input gives useless error)
