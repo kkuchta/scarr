@@ -1,7 +1,7 @@
 # Scarr
 
 - **S** 3
-- **C** loudflair
+- **C** loudfront
 - **A** CM
 - **R** oute53
 - **R** edundant letter to prevent name collisions
