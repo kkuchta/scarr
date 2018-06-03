@@ -173,4 +173,6 @@ func runDeploy(skipSetup bool, autoRegister bool) {
 
 	changedFiles := s3Sync(config.Region, s3Bucket, &config.Exclude)
 	invalidateCloudfront(s3Url, changedFiles)
+
+	logln("Deployed to https://%v", config.domain)
 }
