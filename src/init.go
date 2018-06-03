@@ -32,6 +32,8 @@ domainContact:
 # A list of regexes to be run against paths in the current directory.  Any file path matching any of these regexes will not be synced to s3
 exclude:
   - "scarr\\.yml"
+  - "^\\.git"
+  - "\\.DS_Store
 `
 
 func generateConfig(domain string, name string, region string) string {

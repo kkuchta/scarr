@@ -94,11 +94,6 @@ func createBucket(bucketName string, region string) {
 
 func s3Sync(region string, bucket string, configuredExclude *[]string) []string {
 	service := s3ManagerService(region)
-	defaultExclude := []string{
-		".git",
-		".DS_Store",
-	}
-	allExclude := append(defaultExclude, *configuredExclude...)
 
 	fileList := []string{}
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
@@ -106,7 +101,7 @@ func s3Sync(region string, bucket string, configuredExclude *[]string) []string 
 			return nil
 		}
 
-		for _, exclude := range allExclude {
+		for _, exclude := range *configuredExclude {
 			matched, err := regexp.MatchString(exclude, path)
 			dieOnError(err, "Invalid exclude regex")
 			if matched {
