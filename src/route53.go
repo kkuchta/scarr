@@ -133,6 +133,7 @@ func dnsRecordExists(hostedZoneID string, domain string, recordType string) bool
 }
 
 func getHostedZone(domain string) string {
+	rootDomain := getRootDomain(domain)
 	service := route53Service()
 
 	hostedZoneID := ""
@@ -141,7 +142,7 @@ func getHostedZone(domain string) string {
 	dieOnError(err, "Failed to list hosted zones")
 
 	for _, hostedZone := range hostedZonesList.HostedZones {
-		if *hostedZone.Name == domain+"." {
+		if *hostedZone.Name == rootDomain+"." {
 			hostedZoneID = *hostedZone.Id
 		}
 	}

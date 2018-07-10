@@ -60,30 +60,38 @@ func getConfig() configType {
 	return config
 }
 
-func ensureDomainRegistered(config configType, autoRegister bool) {
-	log("Checking domain " + config.Domain + "registration...")
+// Gets the root domain (eg foo.com from bar.foo.com).
+func getRootDomain(domain string) string {
+	domainParts := strings.Split(domain, ".")
+	return domainParts[len(domainParts)-2] + "." + domainParts[len(domainParts)-1]
+}
 
-	domainDetail := getDomainDetails(config.Domain)
+func ensureDomainRegistered(config configType, autoRegister bool) {
+	// We can't register a subdomain, so let's check registration on the main domain instead
+	domain := getRootDomain(config.Domain)
+	log("Checking domain " + domain + " registration...")
+
+	domainDetail := getDomainDetails(domain)
 	if domainDetail == nil {
 		logln("\nNot registered in our Route53")
 
 		// Not clear if there's a good way to detect this
-		// if isRegistering(config.Domain) {
+		// if isRegistering(domain) {
 		// 	fmt.Println("Your domain is still registering.  Try again later.")
 		// 	return
 		// }
 
-		domainAvailability := getDomainAvailability(config.Domain)
+		domainAvailability := getDomainAvailability(domain)
 		if domainAvailability {
 			logln(`
 But it *is* available to register.  For current prices, see the document linked at:
 https://aws.amazon.com/route53/pricing/
 				`)
-			if strings.HasSuffix(config.Domain, ".com") {
+			if strings.HasSuffix(domain, ".com") {
 				logln("(As of April 2018, .com TLDs were $12/yr)")
 			}
 			if autoRegister || confirm("Register that domain?") {
-				registerDomain(config.Domain, config.DomainContact)
+				registerDomain(domain, config.DomainContact)
 			}
 		} else {
 			fmt.Println(`
@@ -158,7 +166,6 @@ func invalidateCloudfront(s3Domain string, pathsToInvalidate []string) {
 
 func runDeploy(skipSetup bool, autoRegister bool) {
 	logln("Deploying")
-	// TODO: implement skipsetup and autoregister
 	config := getConfig()
 	s3Bucket := config.Name + "-bucket"
 	s3Url := s3Bucket + ".s3-website-" + config.Region + ".amazonaws.com"
