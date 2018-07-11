@@ -1,0 +1,12 @@
+language: go
+go:
+  - "1.10"
+script:
+  - go test -v ./...
+  - mkdir dist
+  - export BUILD_DATE=$(date -Iseconds)
+  - cp src/*.go .
+  - GOOS=linux   GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "build/scarr-linux"
+  - GOOS=darwin  GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "build/scarr-macos"
+  - GOOS=windows GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "build/scarr-windows.exe"
+  - ./build/scarr-linux --version

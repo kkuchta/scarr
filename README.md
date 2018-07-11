@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/kkuchta/scarr.svg?branch=master)](https://travis-ci.org/kkuchta/scarr)
+
 # Scarr
 
 - **S** 3
