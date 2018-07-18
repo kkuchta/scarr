@@ -84,10 +84,16 @@ func createBucket(bucketName string, region string) {
 
 	input := s3.CreateBucketInput{
 		Bucket: &bucketName,
-		CreateBucketConfiguration: &s3.CreateBucketConfiguration{
-			LocationConstraint: &region,
-		},
 	}
+
+	// Apparently the aws api treats us-east-1 as the default for s3 buckets *and
+	// throws an error* if you try to specify us-east-1 as the region.  Wtf.
+	if region != "us-east-1" {
+		input.CreateBucketConfiguration = &s3.CreateBucketConfiguration{
+			LocationConstraint: &region,
+		}
+	}
+
 	_, err := service.CreateBucket(&input)
 	dieOnError(err, "Failed to create bucket")
 }
