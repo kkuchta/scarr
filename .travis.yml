@@ -3,10 +3,24 @@ go:
   - "1.10"
 script:
   - go test -v ./...
-  - mkdir dist
   - export BUILD_DATE=$(date -Iseconds)
   - cp src/*.go .
-  - GOOS=linux   GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "build/scarr-linux"
-  - GOOS=darwin  GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "build/scarr-macos"
-  - GOOS=windows GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "build/scarr-windows.exe"
-  - ./build/scarr-linux --version
+  - GOOS=linux   GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "dist/scarr-linux"
+  - GOOS=darwin  GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "dist/scarr-macos"
+  - GOOS=windows GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "dist/scarr-windows.exe"
+  - ls
+  - ls dist
+  - pwd
+  - echo $TRAVIS_BUILD_DIR
+  - ./dist/scarr-linux --version
+deploy:
+  provider: releases
+  api_key: ${GITHUB_OATH_TOKEN}
+  skip_cleanup: true
+  file:
+    - dist/scarr-linux
+    - dist/scarr-macos
+    - dist/scarr-windows.exe
+  on:
+    tags: true
+    branch: kk_release_test
