@@ -8,9 +8,6 @@ script:
   - GOOS=linux   GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "dist/scarr-linux"
   - GOOS=darwin  GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "dist/scarr-macos"
   - GOOS=windows GOARCH=amd64 go build -ldflags "-X main.BuildDate=$BUILD_DATE" -o "dist/scarr-windows.exe"
-  - ls
-  - ls dist
-  - pwd
   - echo $TRAVIS_BUILD_DIR
   - ./dist/scarr-linux --version
 deploy:
