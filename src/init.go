@@ -33,7 +33,7 @@ domainContact:
 exclude:
   - "scarr\\.yml"
   - "^\\.git"
-  - "\\.DS_Store
+  - "\\.DS_Store"
 `
 
 func generateConfig(domain string, name string, region string) string {
