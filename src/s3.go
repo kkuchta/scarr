@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -127,13 +128,33 @@ func s3Sync(region string, bucket string, configuredExclude *[]string) []string 
 		file, fileErr := os.Open(filename)
 		dieOnError(fileErr, "Failed to open file")
 
-		// Grab the first 512 bytes to detect the content type
-		buffer := make([]byte, 512)
-		_, err = file.Read(buffer)
-		dieOnError(err, "Failed reading start of file to detect content type for "+filename)
-		// Reset the read pointer if necessary.
-		file.Seek(0, 0)
-		contentType := http.DetectContentType(buffer)
+		ext := filepath.Ext(filename)
+
+		contentType := ""
+
+		// Detect content type from the extension
+		switch ext {
+		case ".htm", ".html":
+			contentType = "text/html"
+		case ".css":
+			contentType = "text/css"
+		case ".js":
+			contentType = "application/javascript"
+		default:
+			contentType = mime.TypeByExtension(ext)
+		}
+
+		// If we can't figure out content type from the extension, try DetectContentType
+		if contentType == "" {
+			// Grab the first 512 bytes to detect the content type
+			buffer := make([]byte, 512)
+			_, err = file.Read(buffer)
+			dieOnError(err, "Failed reading start of file to detect content type for "+filename)
+			// Reset the read pointer if necessary.
+			file.Seek(0, 0)
+			contentType = http.DetectContentType(buffer)
+		}
+
 		logln("Uploading ", filename, " to ", bucket)
 		_, uploadErr := service.Upload(&s3manager.UploadInput{
 			Bucket:      aws.String(bucket),
