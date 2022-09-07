@@ -30,6 +30,7 @@ type configType struct {
 	Region        string             `yaml:"region"`
 	DomainContact contactDetailsType `yaml:"domainContact"`
 	Exclude       []string           `yaml:"exclude"`
+	Redirect      string             `yaml:"redirect"`
 }
 
 func dieOnError(err error, message string) {
@@ -107,7 +108,7 @@ this (you'll have to manage your own domain + dns setup then)
 		logln("Looks good!")
 	}
 }
-func ensureS3BucketExists(s3BucketName string, region string) {
+func ensureS3BucketExists(s3BucketName string, region string, redirect string) {
 	logf("Checking bucket %v...", s3BucketName)
 	if !bucketExists(s3BucketName, region) {
 		log(" bucket doesn't exist; creating it now...")
@@ -122,7 +123,7 @@ func ensureS3BucketExists(s3BucketName string, region string) {
 	// 	os.Exit(1)
 	// }
 	logln(" done")
-	ensureBucketIsWebsite(s3BucketName, region)
+	ensureBucketIsWebsite(s3BucketName, region, redirect)
 }
 
 func ensureACMCertificate(domain string) string {
@@ -169,17 +170,20 @@ func runDeploy(skipSetup bool, autoRegister bool) {
 	config := getConfig()
 	s3Bucket := config.Name + "-bucket"
 	s3Url := s3Bucket + ".s3-website-" + config.Region + ".amazonaws.com"
+	redirect := config.Redirect
 
 	if !skipSetup {
 		ensureDomainRegistered(config, autoRegister)
 		certArn := ensureACMCertificate(config.Domain)
-		ensureS3BucketExists(s3Bucket, config.Region)
+		ensureS3BucketExists(s3Bucket, config.Region, redirect)
 		cloudfrontDomain := ensureCloudFrontExists(certArn, s3Url, s3Bucket, config.Domain)
 		ensureDomainPointingToCloudfront(cloudfrontDomain, config.Domain)
 	}
 
-	changedFiles := s3Sync(config.Region, s3Bucket, &config.Exclude)
-	invalidateCloudfront(s3Url, changedFiles)
+	if redirect == "" {
+		changedFiles := s3Sync(config.Region, s3Bucket, &config.Exclude)
+		invalidateCloudfront(s3Url, changedFiles)
+	}
 
 	logf("Deployed to https://%v", config.Domain)
 }

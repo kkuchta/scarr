@@ -110,6 +110,7 @@ func main() {
 	domainPtr := initCommand.String("domain", "", "The domain this site will live at")
 	namePtr := initCommand.String("name", "", "The name of this project")
 	regionPtr := initCommand.String("region", "us-west-1", "The aws region this project's resources will live in (eg us-west-1)")
+	redirectPtr := initCommand.String("redirect", "", "The URL to redirect the domain to.")
 
 	skipSetupPtr := deployCommand.Bool("skip-setup", false, "Assume the infrastructure is all set up and just do the file upload + cache invalidations.")
 	autoRegisterPtr := deployCommand.Bool("auto-register", false, "Register the domain name without prompting if necessary and available")
@@ -149,7 +150,7 @@ func main() {
 	logLevel = 1
 
 	if initCommand.Parsed() {
-		runInit(*domainPtr, *namePtr, *regionPtr)
+		runInit(*domainPtr, *namePtr, *regionPtr, *redirectPtr)
 		// fmt.Println("init parsed", *domainPtr, *namePtr, *regionPtr)
 	} else if deployCommand.Parsed() {
 		if *silentDeployPtr {
