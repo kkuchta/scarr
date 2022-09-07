@@ -1,5 +1,5 @@
 package main
 
 func getVersion() string {
-	return "0.4.5"
+	return "0.5.0"
 }

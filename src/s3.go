@@ -1,16 +1,17 @@
 package main
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
 func s3Service(region string) *s3.S3 {
@@ -56,7 +57,7 @@ func bucketIsWorldReadable(bucketName string, region string) bool {
 	return false
 }
 
-func ensureBucketIsWebsite(bucketName string, region string) {
+func ensureBucketIsWebsite(bucketName string, region string, redirect string) {
 	service := s3Service(region)
 	_, err := service.GetBucketWebsite(&s3.GetBucketWebsiteInput{Bucket: &bucketName})
 	if err != nil {
@@ -64,12 +65,25 @@ func ensureBucketIsWebsite(bucketName string, region string) {
 		if awsError.Code() == "NoSuchWebsiteConfiguration" {
 			log("Making S3 bucket website...")
 			indexFile := "index.html"
-			_, err = service.PutBucketWebsite(&s3.PutBucketWebsiteInput{
-				Bucket: &bucketName,
-				WebsiteConfiguration: &s3.WebsiteConfiguration{
-					IndexDocument: &s3.IndexDocument{Suffix: &indexFile},
-				},
-			})
+			if redirect == "" {
+				_, err = service.PutBucketWebsite(&s3.PutBucketWebsiteInput{
+					Bucket: &bucketName,
+					WebsiteConfiguration: &s3.WebsiteConfiguration{
+						IndexDocument: &s3.IndexDocument{Suffix: &indexFile},
+					},
+				})
+			} else {
+
+				_, err = service.PutBucketWebsite(&s3.PutBucketWebsiteInput{
+					Bucket: &bucketName,
+					WebsiteConfiguration: &s3.WebsiteConfiguration{
+						RedirectAllRequestsTo: &s3.RedirectAllRequestsTo{
+							HostName: &redirect,
+						},
+					},
+				})
+			}
+
 			dieOnError(err, "Failed to update s3 bucket website config")
 			logln(" done")
 		} else {
